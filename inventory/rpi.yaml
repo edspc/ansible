@@ -1,0 +1,19 @@
+---
+raspberry:
+  hosts:
+    rpi.local:
+      pi_model: 4b
+    rpi-lite.local:
+      pi_model: zero
+  vars:
+    ansible_connection: ssh
+    ansible_user: "{{ lookup('env', 'USER') }}"
+    ansible_become: true
+    ansible_become_method: sudo
+    ansible_become_user: root
+    ansible_python_interpreter: /usr/bin/python3.11
+
+    wpa_passphrase: false
+    wpa_networks:
+      - ssid: "{{ lookup('community.general.onepassword', 'Home', field='name') }}"
+        psk: "{{ lookup('community.general.onepassword', 'Home', field='password') }}"

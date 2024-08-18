@@ -1,0 +1,91 @@
+---
+- name: Setup Raspberry
+  hosts: raspberry
+  tasks:
+  - name: Setup dtoverlay in config.txt
+    ansible.builtin.lineinfile:
+      path: /boot/firmware/config.txt
+      line: "dtoverlay=dwc2"
+    when: pi_model == "zero"
+    tags: pi-zero, gadget
+  - name: Setup dtoverlay in cmdline.txt
+    ansible.builtin.replace:
+      path: /boot/firmware/cmdline.txt
+      after: rootwait
+      regexp: '^(.+)$'
+      replace: 'modules-load=dwc2,g_ether \1'
+    when: pi_model == "zero"
+    tags: pi-zero, gadget
+  - name: Enable memory cgroup
+    ansible.builtin.replace:
+      path: /boot/firmware/cmdline.txt
+      before: '^'
+      regexp: '^(.+)$'
+      replace: 'cgroup_enable=memory cgroup_memory=1'
+    tags: general, cgroup
+  - name: Install packages
+    ansible.builtin.package:
+      name:
+      - systemd-resolved
+      - libnss-resolve
+      - python3-pexpect
+      state: latest
+    tags: general, wifi
+  - name: Setup usb0 network interface
+    community.general.ini_file:
+      path: /etc/systemd/network/10-usb0.network
+      no_extra_spaces: true
+      section: "{{ item.section }}"
+      option: "{{ item.option }}"
+      value: "{{ item.value }}"
+    loop:
+    - { section: 'Match', option: 'Name', value: 'usb0' }
+    - { section: 'Network', option: 'LinkLocalAddressing', value: 'ipv4' }
+    - { section: 'Network', option: 'MulticastDNS', value: 'yes' }
+    when: pi_model == "zero"
+    tags: general, pi-zero
+  - name: Setup wlan0 network interface
+    community.general.ini_file:
+      path: /etc/systemd/network/10-wlan0.network
+      no_extra_spaces: true
+      section: "{{ item.section }}"
+      option: "{{ item.option }}"
+      value: "{{ item.value }}"
+    loop:
+    - { section: 'Match', option: 'Name', value: 'wlan0' }
+    - { section: 'Network', option: 'DHCP', value: 'ipv4' }
+    - { section: 'Network', option: 'MulticastDNS', value: 'yes' }
+    tags: general
+  - name: Setup eth0 / end0 network interface
+    community.general.ini_file:
+      path: /etc/systemd/network/10-end0.network
+      no_extra_spaces: true
+      section: "{{ item.section }}"
+      option: "{{ item.option }}"
+      value: "{{ item.value }}"
+    loop:
+    - { section: 'Match', option: 'Name', value: "{% if 'end0' in ansible_interfaces %}end0{% else %}eth0{% endif %}" }
+    - { section: 'Network', option: 'DHCP', value: 'ipv4' }
+    - { section: 'Network', option: 'MulticastDNS', value: 'yes' }
+    when: pi_model == "4b"
+    tags: general, pi-4b
+  - name: Configure WiFi config
+    tags: general, wifi
+    block:
+    - name: Generate encrypted passphrase(s)
+      ansible.builtin.expect:
+        command: wpa_passphrase {{ item.ssid }}
+        responses:
+          "# reading passphrase": "{{ item.psk }}"
+      when: item.psk is defined and wpa_passphrase
+      loop: "{{ wpa_networks }}"
+      register: wpa_encrypted_networks
+      changed_when: false
+      check_mode: false
+    - name: Generate wpa_supplicant.conf file
+      ansible.builtin.template:
+        src: templates/wpa_supplicant.conf.j2
+        dest: /etc/wpa_supplicant/wpa_supplicant-wlan0.conf
+        owner: root
+        group: root
+        mode: 0600
