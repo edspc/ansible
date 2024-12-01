@@ -1,5 +1,5 @@
 ---
-- name: Upgrade Raspberry
+- name: Install Tailscale
   hosts: raspberry
   tasks:
     - name: Install Dependencies
@@ -20,7 +20,7 @@
     - name: Add Tailscale repository
       ansible.builtin.apt_repository:
         repo: "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/{{ ansible_distribution | lower }} {{ ansible_distribution_release | lower }} main"
-        filename: "tailscale"
+        filename: tailscale
         state: present
 
     - name: Install Tailscale

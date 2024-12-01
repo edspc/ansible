@@ -1,4 +1,9 @@
 ---
+kube_version: v1.31
+helm_version: v3.16.3
+
+manage_firewall: False
+
 wpa_ctrl_interface: DIR=/run/wpa_supplicant GROUP=netdev
 wpa_passphrase: true
 wpa_update_config: 1

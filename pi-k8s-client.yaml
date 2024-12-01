@@ -1,0 +1,91 @@
+---
+- name: Install K8s client
+  hosts: raspberry
+  tasks:
+    - name: Install Dependencies
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+        cache_valid_time: 3600
+        state: present
+    
+    - name: Ensure /etc/apt/keyrings directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Install kubectl
+      tags: kubectl
+      block:
+        - name: Download Kubernetes GPG key
+          ansible.builtin.get_url:
+            url: https://pkgs.k8s.io/core:/stable:/{{ kube_version }}/deb/Release.key
+            dest: /tmp/kubernetes-release.key
+            mode: '0644'
+
+        - name: Convert GPG key to keyring format
+          ansible.builtin.command:
+            cmd: gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /tmp/kubernetes-release.key
+          args:
+            creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+        - name: Clean up temporary GPG key file
+          ansible.builtin.file:
+            path: /tmp/kubernetes-release.key
+            state: absent
+
+        - name: Set permissions for Kubernetes apt keyring
+          ansible.builtin.file:
+            path: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+            mode: '0644'
+            state: file
+        
+        - name: Add Kubernetes repository
+          ansible.builtin.apt_repository:
+            repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ kube_version }}/deb/ /"
+            filename: kubernetes
+            state: present
+
+        - name: Install kubectl
+          ansible.builtin.apt:
+            name: kubectl
+            state: present
+            update_cache: yes
+
+
+    - name: Install helm
+      tags: helm
+      vars:
+        arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else ansible_architecture }}"
+      block:
+        - name: Download Helm binary tarball
+          ansible.builtin.get_url:
+            url: "https://get.helm.sh/helm-{{ helm_version }}-linux-{{ arch }}.tar.gz"
+            dest: "/tmp/helm.tar.gz"
+
+        - name: Extract Helm binary
+          ansible.builtin.unarchive:
+            src: "/tmp/helm.tar.gz"
+            dest: "/tmp"
+            remote_src: yes
+
+        - name: Install Helm binary
+          ansible.builtin.copy:
+            remote_src: yes
+            src: "/tmp/linux-{{ arch }}/helm"
+            dest: "/usr/local/bin/helm"
+            mode: "0755"
+
+        - name: Clean up temporary files
+          ansible.builtin.file:
+            path: "/tmp/helm.tar.gz"
+            state: absent
+
+        - name: Verify Helm installation
+          ansible.builtin.command:
+            cmd: helm version
+        

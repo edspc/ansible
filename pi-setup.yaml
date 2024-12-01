@@ -57,18 +57,20 @@
     - { section: 'Network', option: 'MulticastDNS', value: 'yes' }
     tags: general
   - name: Setup eth0 / end0 network interface
+    tags: general, pi-4b, eth
+    vars:
+      interface_name: "{% if 'end0' in ansible_interfaces %}end0{% else %}eth0{% endif %}"
     community.general.ini_file:
-      path: /etc/systemd/network/10-end0.network
+      path: "/etc/systemd/network/15-{{ interface_name }}.network"
       no_extra_spaces: true
       section: "{{ item.section }}"
       option: "{{ item.option }}"
       value: "{{ item.value }}"
     loop:
-    - { section: 'Match', option: 'Name', value: "{% if 'end0' in ansible_interfaces %}end0{% else %}eth0{% endif %}" }
+    - { section: 'Match', option: 'Name', value: "{{ interface_name }}" }
     - { section: 'Network', option: 'DHCP', value: 'ipv4' }
     - { section: 'Network', option: 'MulticastDNS', value: 'yes' }
     when: pi_model == "4b"
-    tags: general, pi-4b
   - name: Configure WiFi config
     tags: general, wifi
     block:
@@ -158,3 +160,30 @@
       - isc-dhcp-common
       - openresolv
       - rsyslog
+
+  - name: Setup Mosh
+    tags: general, mosh
+    block:
+      - name: Install Mosh package
+        ansible.builtin.apt:
+          name: mosh
+          state: present
+          update_cache: yes
+      
+      - name: Open Mosh UDP port range in firewall (if UFW is used)
+        ansible.builtin.ufw:
+          rule: allow
+          port: 60000:61000
+          proto: udp
+        when: manage_firewall
+
+  - name: Set en_US.UTF-8 locale
+    tags: general, locale
+    block:
+      - name: Ensure en_US.UTF-8 is generated
+        ansible.builtin.command:
+          cmd: locale-gen en_US.UTF-8
+
+      - name: Update environment locale
+        ansible.builtin.shell: |
+          update-locale LANG=en_US.UTF-8
