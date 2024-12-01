@@ -187,3 +187,19 @@
       - name: Update environment locale
         ansible.builtin.shell: |
           update-locale LANG=en_US.UTF-8
+
+  - name: Setup zsh
+    tags: general, zsh
+    block:
+      - name: Ensure zsh is installed
+        ansible.builtin.apt:
+          name:
+            - zsh
+            - fonts-font-awesome
+          state: present
+          update_cache: yes
+
+      - name: Set zsh as default shell for the user
+        ansible.builtin.user:
+          name: "{{ ansible_user }}"
+          shell: /usr/bin/zsh
