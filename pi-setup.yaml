@@ -40,6 +40,7 @@
       value: "{{ item.value }}"
     loop:
     - { section: 'Match', option: 'Name', value: 'usb0' }
+    - { section: 'Link', option: 'RequiredForOnline', value: 'no' }
     - { section: 'Network', option: 'LinkLocalAddressing', value: 'ipv4' }
     - { section: 'Network', option: 'MulticastDNS', value: 'yes' }
     when: pi_model == "zero"
@@ -68,6 +69,7 @@
       value: "{{ item.value }}"
     loop:
     - { section: 'Match', option: 'Name', value: "{{ interface_name }}" }
+    - { section: 'Link', option: 'RequiredForOnline', value: 'no' }
     - { section: 'Network', option: 'DHCP', value: 'ipv4' }
     - { section: 'Network', option: 'MulticastDNS', value: 'yes' }
     when: pi_model == "4b"
