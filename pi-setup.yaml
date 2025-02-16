@@ -184,11 +184,11 @@
     block:
       - name: Ensure en_US.UTF-8 is generated
         ansible.builtin.command:
-          cmd: locale-gen en_US.UTF-8
+          cmd: locale-gen en_US.UTF-8 en_GB.UTF-8
 
       - name: Update environment locale
         ansible.builtin.shell: |
-          update-locale LANG=en_US.UTF-8
+          update-locale en_US.UTF-8
 
   - name: Setup zsh
     tags: general, zsh
