@@ -78,7 +78,7 @@
     block:
     - name: Generate encrypted passphrase(s)
       ansible.builtin.expect:
-        command: wpa_passphrase {{ item.ssid }}
+        command: wpa_passphrase "{{ item.ssid }}"
         responses:
           "# reading passphrase": "{{ item.psk }}"
       when: item.psk is defined and wpa_passphrase
@@ -118,14 +118,21 @@
       dest: /etc/resolv.conf
       state: link
       force: yes
-  - name: Disable NetworkManager and ssh.service service
+  - name: Disable NetworkManager
     tags: general
     ansible.builtin.systemd_service:
-      name: "{{ item }}"
+      name: NetworkManager
       enabled: no
-    loop:
-      - NetworkManager
-      - ssh.service
+      masked: yes
+    register: disabled_service
+    failed_when:
+      - disabled_service.failed == true
+      - '"Could not find the requested service" not in disabled_service.msg'
+  - name: Disable ssh service autostart
+    tags: general, ssh
+    ansible.builtin.systemd_service:
+      name: ssh.service
+      enabled: no
   - name: Reboot the system
     ansible.builtin.reboot:
       reboot_timeout: 300
@@ -144,6 +151,7 @@
         - openresolv
         - rsyslog
         - firefox
+        - libcamera-ipa
       state: absent
       purge: yes
       autoremove: yes
@@ -162,6 +170,7 @@
       - isc-dhcp-common
       - openresolv
       - rsyslog
+      - libcamera-ipa
 
   - name: Setup Mosh
     tags: general, mosh
@@ -205,3 +214,25 @@
         ansible.builtin.user:
           name: "{{ ansible_user }}"
           shell: /usr/bin/zsh
+
+  - name: Upgrade all packages
+    tags: upgrade, packages
+    ansible.builtin.apt:
+      upgrade: full
+      update_cache: yes
+      cache_valid_time: 3600
+  - name: Install packages
+    tags: upgrade, packages
+    ansible.builtin.apt:
+      name:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg
+        - nano
+        - git
+        - wget
+        - htop
+        - tmux
+      cache_valid_time: 3600
+      state: present

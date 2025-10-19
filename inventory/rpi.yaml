@@ -5,6 +5,7 @@ raspberry:
       pi_model: 4b
     rpi-lite.local:
       pi_model: zero
+      ansible_python_interpreter: /usr/bin/python3.13
   vars:
     ansible_connection: ssh
     ansible_user: "{{ lookup('env', 'USER') }}"
